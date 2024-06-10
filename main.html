@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>좀비 게임</title>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #000000; /* 완전 검정 배경 */
+            color: #FFFFFF; /* 흰색 텍스트 */
+            background-image: url('https://www.transparenttextures.com/patterns/asfalt-light.png');
+        }
+
+        .input-field {
+            background-color: #333333; /* 어두운 입력 배경 */
+            color: #FFFFFF; /* 흰색 텍스트 */
+        }
+
+        .btn {
+            background-color: #1F1F1F; /* 어두운 버튼 배경 */
+            color: #FFFFFF; /* 흰색 텍스트 */
+            font-size: 1.25rem; /* 버튼 텍스트 크기 (줄이기) */
+            padding: 1rem 2rem; /* 버튼 패딩 (줄이기) */
+        }
+
+        .btn:hover {
+            background-color: #333333; /* 호버 시 더 어두운 버튼 */
+        }
+
+        .swal-overlay {
+            background-color: rgba(0, 0, 0, 0.8); /* SweetAlert 배경 */
+        }
+
+        .swal-modal {
+            background-color: #FFFFFF; /* SweetAlert 창 배경을 흰색으로 변경 */
+            color: #000000; /* 텍스트 색상 */
+        }
+
+        .swal-title,
+        .swal-text {
+            color: #000000; /* SweetAlert 텍스트 색상 */
+        }
+
+        .swal-icon--success__line,
+        .swal-icon--error__line {
+            stroke: #000000; /* 아이콘 색상: 흰색 원에 가리지 않도록 변경 */
+        }
+
+        .swal-icon--success,
+        .swal-icon--error {
+            border-color: #000000; /* SweetAlert 아이콘 원 테두리 색상 */
+        }
+
+        .swal-button--confirm {
+            background-color: #1F1F1F; /* SweetAlert 확인 버튼 배경 */
+            color: #FFFFFF; /* 버튼 텍스트 색상 */
+        }
+
+        .swal-button--confirm:hover {
+            background-color: #333333; /* 호버 시 더 어두운 버튼 */
+        }
+
+        .lock-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #FFFFFF;
+            font-size: 2rem;
+            z-index: 9999;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen">
+    <div class="bg-gray-900 p-8 rounded-lg shadow-lg w-full max-w-md">
+        <div class="mb-6">
+            <div id="question" class="text-xl font-bold mb-4">백가지 과일이 죽기 직전을 다른 말로?</div>
+        </div>
+        <div class="mb-6">
+            <input type="text" id="answer" class="w-full p-3 border rounded-lg input-field" placeholder="답변을 적어주세요">
+        </div>
+        <div class="flex justify-end">
+            <button onclick="checkAnswer()" class="btn rounded-lg" id="submitBtn">답변 제출</button>
+        </div>
+    </div>
+
+    <div id="lockOverlay" class="lock-overlay hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0110 0v4"></path>
+        </svg>
+        <div>남은 시간: <span id="countdown">30</span>초</div>
+    </div>
+
+    <script>
+        let questions = [
+            { question: '백가지 과일이 죽기 직전을 다른 말로?', answer: '백과사전' },
+            { question: '펭귄이 다니는 중학교는?', answer: '냉방중' },
+            { question: '다음 중국어의 의미는? (4글자 입력) \n -> yéye', answer: '할아버지' },
+            { question: '학교 폭력 신고 번호는?', answer: '117' },
+            { question: '깨뜨리고 칭찬 받는 것은?', answer: '신기록' },
+            { question: '청바지를 돋보이게 하는 걸음걸이는?', answer: '진주목걸이' },
+            { question: '닭이 스키니 바지를 입고 하는 말?', answer: '꼬끼오' },
+            { question: '다정함의 반대는?', answer: '선택장애' },
+            { question: '우리나라 가장 동쪽에 위치한 섬은?', answer: '독도' },
+            // 필요한 만큼 질문을 추가하세요
+        ];
+        let currentQuestionIndex = 0;
+
+        const correctSound = new Audio('correct.wav');
+        const incorrectSound = new Audio('correct.wav');
+
+        function loadQuestion() {
+            document.getElementById('question').innerText = questions[currentQuestionIndex].question;
+            document.getElementById('answer').value = '';
+        }
+
+        function disableButtonTemporarily(button, duration) {
+            button.disabled = true;
+            const lockOverlay = document.getElementById('lockOverlay');
+            const countdown = document.getElementById('countdown');
+            let timeLeft = duration / 1000; // 초로 변환
+
+            lockOverlay.classList.remove('hidden');
+            countdown.innerText = timeLeft;
+
+            const countdownInterval = setInterval(() => {
+                timeLeft--;
+                countdown.innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    button.disabled = false;
+                    lockOverlay.classList.add('hidden');
+                }
+            }, 1000);
+        }
+
+        function checkAnswer() {
+            const answer = document.getElementById('answer').value.trim();
+            const submitBtn = document.getElementById('submitBtn');
+
+            disableButtonTemporarily(submitBtn, 30000); // 버튼 30초 비활성화
+
+            if (answer === questions[currentQuestionIndex].answer) {
+                swal({
+                    title: "정답!",
+                    text: "배란다 문을 열고 구출하세요! \n 좀비가 쫒아옵니다!",
+                    icon: "success",
+                    buttons: false,
+                    timer: 1800, // 2초 후에 자동으로 창 닫힘
+                    className: 'custom-swal-modal'
+                });
+                correctSound.play();
+                currentQuestionIndex++;
+                if (currentQuestionIndex < questions.length) {
+                    loadQuestion();
+                } else {
+                    swal({
+                        title: "문제 소진",
+                        text: "문제가 소진되어 더이상 구출할 수 없습니다.",
+                        icon: "success",
+                        buttons: false,
+                        closeOnClickOutside: false,
+                        closeOnEsc: false
+                    });
+                }
+            } else {
+                swal({
+                    title: "오답!",
+                    text: "좀비가 오기전에 도망가세요!",
+                    icon: "error",
+                    buttons: false,
+                    timer: 1500, // 2초 후에 자동으로 창 닫힘
+                    className: 'custom-swal-modal'
+                });
+                incorrectSound.play();
+            }
+        }
+
+        loadQuestion(); // 페이지가 로드될 때 첫 질문을 로드
+    </script>
+</body>
+</html>
